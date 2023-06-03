@@ -1,0 +1,262 @@
+perform create_dms_document using 'C:\Users\ADMIN\Downloads\new 3.html.pdf'.
+
+
+FORM create_dms_document USING iv_path.
+  tables : nast.
+  DATA : lv_vbeln TYPE bapi_doc_aux-docnumber.
+*  lv_index = 1.
+*  IF lv_index = 1.
+*    lv_vbeln = '123456'."gs_emudhra-zdoknr_original'.
+*  ELSEIF lv_index = 2.
+*    lv_vbeln = gs_emudhra-zdoknr_duplicate.
+*  ELSEIF lv_index = 3.
+*    lv_vbeln = gs_emudhra-zdoknr_transpot.
+*  ENDIF.
+
+  DATA:
+    BEGIN OF wa_filename,
+      sl_no        TYPE i,
+      filename     TYPE ibipparms-path,
+      path         TYPE  ibipparms-path,
+      directory    TYPE dsvasdocid,
+      extn         TYPE draw-dappl,      " for starting application "DSVASDOCID,
+      flag_del_add TYPE char01,
+      row_sel      TYPE c,
+    END OF wa_filename.
+  DATA:
+    it_filename           LIKE STANDARD TABLE OF wa_filename,
+    path                  TYPE ibipparms-path,
+    extension             TYPE string,
+    pathfordir            TYPE dsvasdocid,
+    open_fileextn         TYPE draw-dappl,
+    open_filename         TYPE ibipparms-path,
+    description           TYPE dktxt,
+    dms_filename          TYPE dsvasdocid,
+    dms_path              TYPE dsvasdocid,
+    filename              TYPE draw-filep,
+    it_deleteversionfiles LIKE STANDARD TABLE OF wa_filename,
+    it_filenameold        LIKE STANDARD TABLE OF wa_filename,
+    delete_filename       LIKE wa_filename,
+    exist_filename        LIKE wa_filename,
+    files                 TYPE filetable,
+    wa_files              TYPE  file_table,
+    c_newlyadded          TYPE char01 VALUE 'A',
+    c_storage_cat         TYPE cv_storage_cat,
+    c_x                   TYPE char01 VALUE 'X',
+    click_selall          TYPE char10,
+    click_find            TYPE char10,
+    click_newversion      TYPE char10.
+
+  DATA :
+    documentdata    TYPE bapi_doc_draw2,
+    documenttype    TYPE bapi_doc_aux-doctype,
+    documentnumber  TYPE bapi_doc_aux-docnumber,
+    documentpart    TYPE bapi_doc_aux-docpart,
+    documentversion TYPE  bapi_doc_aux-docversion,
+    documentfiles   LIKE  STANDARD TABLE OF bapi_doc_files2 WITH HEADER LINE,
+    c_documentpart  TYPE bapi_doc_aux-docpart VALUE '000',
+    c_extern        TYPE bapi_doc_draw-statusextern,
+    bapi_return     TYPE bapiret2,
+    commit_return   TYPE bapiret2.
+
+  DATA: lv_dokar TYPE dokar.
+
+  CLEAR documentfiles[].
+  lv_dokar = 'CRC'.
+*  lv_dokar = 'ZEM'.
+  c_storage_cat = 'V1' . "'V1'.
+
+  CALL FUNCTION 'TRINT_SPLIT_FILE_AND_PATH'
+    EXPORTING
+      full_name = iv_path
+    IMPORTING
+      file_path = wa_filename-directory.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+
+  DATA : lv_path TYPE c LENGTH 255.
+  lv_path = iv_path.
+
+  CALL FUNCTION 'CV120_SPLIT_PATH'
+    EXPORTING
+      pf_path  = lv_path
+    IMPORTING
+      pfx_file = filename.
+  wa_filename-filename = filename.
+
+  CALL FUNCTION 'TRINT_FILE_GET_EXTENSION'
+    EXPORTING
+      filename  = filename
+    IMPORTING
+      extension = wa_filename-extn.
+
+  CLEAR :documentfiles, documentdata.
+  documentfiles-documenttype    = lv_dokar.     ""ZPA-DOCTYPE. "C_DMSDOCTYPE ."'TST'.
+  documentfiles-documentpart    = c_documentpart.        "'000'
+  documentfiles-documentversion = '00'.             ""ZPA-VERSION."C_DOCUMENTVERSION. "'00'.
+  documentfiles-storagecategory = c_storage_cat. "'DMS_C1_ST'.
+  documentfiles-sourcedatacarrier = c_storage_cat.
+  documentfiles-docpath         = wa_filename-directory.
+  documentfiles-docfile         = wa_filename-filename.
+  documentfiles-wsapplication   = wa_filename-extn.
+  documentfiles-checkedin = 'X'.
+  APPEND documentfiles .
+
+
+  documentdata-documenttype    =  lv_dokar.  "ZPA-DOCTYPE . "C_DMSDOCTYPE. " 'ZIV'.
+  documentdata-documentversion = '00'.  "ZPA-VERSION."  C_DOCUMENTVERSION. "  '00'.
+  documentdata-documentpart    = c_documentpart.           "   '000'.
+  CLEAR documentnumber.
+*  lv_index = 1.
+  documentdata-description = nast-objky = '1234567890'.
+  IF lv_index = 1.
+    CONCATENATE nast-objky 'Original' INTO documentdata-description SEPARATED BY '_'.
+  ELSEIF lv_index = 2.
+    CONCATENATE nast-objky 'Duplicate' INTO documentdata-description SEPARATED BY '_'.
+  ELSEIF lv_index = 3.
+    CONCATENATE nast-objky 'Triplicate' INTO documentdata-description SEPARATED BY '_'.
+  ENDIF.
+  documentdata-statusextern = c_extern." 'CT'.
+
+  CLEAR documentnumber.
+
+  IF lv_vbeln IS INITIAL.
+    CALL FUNCTION 'BAPI_DOCUMENT_CREATE2'
+      EXPORTING
+        documentdata    = documentdata
+      IMPORTING
+        documenttype    = documenttype
+        documentnumber  = documentnumber
+        documentpart    = documentpart
+        documentversion = documentversion
+        return          = bapi_return
+      TABLES
+        documentfiles   = documentfiles.
+    CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+      IMPORTING
+        return = commit_return.
+
+    WAIT UP TO 2 SECONDS.
+*    IF lv_index = 1.
+*      gs_emudhra-zdokar = documenttype.
+*      gs_emudhra-zdokvr = documentversion.
+*      gs_emudhra-zdoknr_original = documentnumber.
+*    ELSEIF lv_index = 2.
+*      gs_emudhra-zdokar = documenttype.
+*      gs_emudhra-zdokvr = documentversion.
+*      gs_emudhra-zdoknr_duplicate = documentnumber.
+*    ELSEIF lv_index = 3.
+*      gs_emudhra-zdokar = documenttype.
+*      gs_emudhra-zdokvr = documentversion.
+*      gs_emudhra-zdoknr_transpot = documentnumber.
+*    ENDIF.
+
+  ELSE.
+    documentnumber = lv_vbeln.
+    documenttype = 'CRC'.
+*    documenttype = 'ZEM'.
+    documentversion = '00'.
+  ENDIF.
+  IF documentnumber IS NOT INITIAL.
+
+    DATA : w_host LIKE bapi_doc_aux-hostname.
+    DATA: lf_line(255).
+    DATA: ls_draw               LIKE draw,
+          ls_message_cvapi      LIKE messages,
+          lt_files_cvapi        TYPE STANDARD TABLE OF cvapi_doc_file,
+          lt_files_cvapi_header LIKE cvapi_doc_file.
+
+    DATA: lt_originals LIKE cvapi_doc_file OCCURS 0 WITH HEADER LINE,
+          vo_originals LIKE cvapi_doc_file OCCURS 0 WITH HEADER LINE.
+
+    ls_draw-dokar = 'CRC'.
+*    ls_draw-dokar = 'ZEM'.
+    ls_draw-doknr = documentnumber.
+    ls_draw-dokvr = '00'.
+    ls_draw-doktl = '000'.
+
+*    READ originals contained in the document info record
+    CALL FUNCTION 'CVAPI_DOC_GETDETAIL'
+      EXPORTING
+        pf_batchmode    = 'X'
+        pf_hostname     = ' '
+        pf_dokar        = ls_draw-dokar
+        pf_doknr        = ls_draw-doknr
+        pf_dokvr        = ls_draw-dokvr
+        pf_doktl        = ls_draw-doktl
+        pf_active_files = 'X'
+      IMPORTING
+        psx_draw        = ls_draw
+      TABLES
+        pt_files        = vo_originals
+      EXCEPTIONS
+        not_found       = 1
+        no_auth         = 2
+        error           = 3
+        OTHERS          = 4.
+    IF sy-subrc <> 0.
+      WRITE 'Error returned by CVAPI_DOC_GETDETAIL'.        "#EC NOTEXT
+      EXIT.
+    ENDIF.
+
+    lt_originals-updateflag = 'I'.
+    DATA : lv_appnr TYPE i.
+    DESCRIBE TABLE vo_originals LINES lv_appnr.
+
+    IF lv_appnr IS INITIAL.
+      lv_appnr = lv_appnr + 1.
+      lt_originals-appnr = lv_appnr.
+      CONDENSE lt_originals-appnr.
+      lt_originals-dappl = 'PDF'.
+      lt_originals-langu = sy-langu.
+*    lt_originals-dttrg = 'V1'.
+      lt_originals-storage_cat = 'V1'.
+      lt_originals-pathname = wa_filename-directory.
+      lt_originals-filename = wa_filename-filename.
+      lt_originals-description = nast-objky.
+      lt_originals-storage_cat = 'V1'.
+      APPEND lt_originals.
+      w_host = sy-host.
+      CALL FUNCTION 'CVAPI_DOC_CHECKIN'
+        EXPORTING
+          pf_dokar           = ls_draw-dokar
+          pf_doknr           = ls_draw-doknr
+          pf_dokvr           = ls_draw-dokvr
+          pf_doktl           = ls_draw-doktl
+*         ps_doc_status      =
+          pf_ftp_dest        = 'SAPFTPA'
+          pf_http_dest       = 'SAPHTTPA'
+*PF_HOSTNAME = w_host
+*         ps_api_control     =
+*         pf_replace         = ' '
+          pf_content_provide = 'SRV'
+        IMPORTING
+          psx_message        = ls_message_cvapi
+        TABLES
+          pt_files_x         = lt_originals.
+*        pt_comp_x          =
+*        pt_content         =.
+
+      IF ls_message_cvapi-msg_type CA 'EA'.
+
+        ROLLBACK WORK.
+        MESSAGE ID '26' TYPE 'I' NUMBER '000'
+        WITH ls_message_cvapi-msg_txt.
+      ELSE.
+        COMMIT WORK AND WAIT.
+        WAIT UP TO 2 SECONDS.
+      ENDIF.
+
+
+    ENDIF.
+
+**************************************************************************************************************************
+**************************************************************************************************************************
+**************************************************************************************************************************
+**************************************************************************************************************************
+
+  ENDIF.
+
+
+ENDFORM.
