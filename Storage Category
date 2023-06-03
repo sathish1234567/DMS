@@ -1,0 +1,31 @@
+There are a two 'storage types' option available. Each one has specific advantage over the other. The storage category is selected on the basis of how the document in question is intended to be used:
+
+1. 'DMS Storage' option(may store in SAP DB,Vault,RFC Archive), you can store upto 2 originals/documents and 99 additional files.
+
+2. 'kPro Storage' option(may store in SAP DB,HTTP Content Server), you can store 'n' originals/documents and 'n' additional files
+
+NOTE:
+
+HTTP content server
+
+Either the SAP Content Server or a third-party content server can be used.
+
+SAP database
+
+If you want to store your documents in the SAP database, you need a content table. All your documents are stored in this table in the SAP database. The content table can be cross-client or client-specific.
+
+RFC storage system
+
+RFC is used for storing documents in the context of SAP ArchiveLink, the Archive Development Kit (ADK), or an application that uses SAP ArchiveLink or the ADK.
+
+Logical repository
+
+This storage type allows access to different physical repositories, independently of the client and the system ID.
+
+Structure repository
+
+The structure repository is only used in the SAP Knowledge Warehouse environment.
+
+In summary, suggest you decide upon your storage category once the rationale behind the usage of the document is agreed upon by all the stakeholders.
+
+P.S. Regarding your question specifically, what you intend to do also holds good.
